@@ -109,6 +109,8 @@ function updateScript(scriptName){
     
         var config = getConfig();
         var newsAppList = config.newsAppList;
+        var commonList = config.commonList;
+        newsAppList = newsAppList.concat(commonList);
         for(var i = 0; i< newsAppList.length;i++){
             var thisScript = newsAppList[i];
             var name = thisScript.name;
