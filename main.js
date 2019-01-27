@@ -4,18 +4,20 @@
  * 2、虚拟步数：大牛助手
  * 2、虚拟IP：
  */
-/**
- * 执行规则
- * 1、顺序执行
- * 2、0-7点不执行
- * 3、每次阅读10篇文章
- * 4、阅读时候，需要有一定的停顿
- */
-init();
+
+ //报错继续执行
+try {
+    init();
+} catch (error) {
+    init();
+}
+
 function init(){
     storages.remove("version");
     //每次阅读的时间
     var normalRumTime = 0.5*60*60;
+    //更新template，每次循环更新一次
+    updateScript("template");
     while(true){
         var config = getConfig();
         //新闻类的列表
@@ -41,12 +43,16 @@ function init(){
 
 //获取主配置
 function getConfig(){
-    toast("开始获取配置");
-    var url = "https://raw.githubusercontent.com/RyanPro/autojs_script/master/config.json";
-    var str = http.get(url)
-    str = JSON.parse(str.body.string());
-    toast("配置获取完成");
-    return str;
+    try {
+        toast("开始获取配置");
+        var url = "https://raw.githubusercontent.com/RyanPro/autojs_script/master/config.json";
+        var str = http.get(url)
+        str = JSON.parse(str.body.string());
+        return str;
+    } catch (error) {
+        toast("获取配置失败，重新获取！");
+        return getConfig();
+    }
 }
 
 //执行脚本
@@ -96,28 +102,33 @@ function stopCurrent(exectuion){
 
 //更新脚本
 function updateScript(scriptName){
-    toast("检测脚本更新");
-    var storage = storages.create("version");
-    var scriptVersion = storage.get(scriptName);
-
-    var config = getConfig();
-    var newsAppList = config.newsAppList;
-    for(var i = 0; i< newsAppList.length;i++){
-        var thisScript = newsAppList[i];
-        var name = thisScript.name;
-        var version = thisScript.version;
-        
-        if(scriptName == name && version != scriptVersion){
-            toast("检测开始更新");
-            var path = "/sdcard/脚本/"+scriptName+".js";
-            var scriptContent = http.get("https://raw.githubusercontent.com/RyanPro/autojs_script/master/"+scriptName+".js").body.string();
-            files.write(path,scriptContent);
-            storage.put(scriptName,version);
-            toast("检测更新完成");
-            return true;
+    try {
+        toast("检测脚本更新");
+        var storage = storages.create("version");
+        var scriptVersion = storage.get(scriptName);
+    
+        var config = getConfig();
+        var newsAppList = config.newsAppList;
+        for(var i = 0; i< newsAppList.length;i++){
+            var thisScript = newsAppList[i];
+            var name = thisScript.name;
+            var version = thisScript.version;
+            
+            if(scriptName == name && version != scriptVersion){
+                toast("检测开始更新");
+                var path = "/sdcard/脚本/"+scriptName+".js";
+                var scriptContent = http.get("https://raw.githubusercontent.com/RyanPro/autojs_script/master/"+scriptName+".js").body.string();
+                files.write(path,scriptContent);
+                storage.put(scriptName,version);
+                toast("检测更新完成");
+                return true;
+            }
+            toast("检测无需更新");
+            return false;
         }
-        toast("检测无需更新");
-        return false;
+    } catch (error) {
+        toast("更新脚本失败！")
     }
+
 }
 
