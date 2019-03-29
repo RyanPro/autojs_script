@@ -6,18 +6,25 @@ var template = {};
  */
 var initParam = {
     appName:"",//应用名称
-    lastNewsText:"",//上一次新闻标题
-
+    appType:"news",//应用类型
+    
     totalNewsReaded : 0,//已经阅读的新闻条数
     totalNewsOneTime : 50,//一次性阅读多少条新闻
     loopTimeToFindNews : 20,//找了多少次新闻找不到会退出
 
-    indexBtnText: "首页", //其他页面挑到首页的按钮文字，重要！
-    indexFlagText : "刷新",//首页特有的标志文字，重要！
-
+    lastNewsText:"",//上一次新闻标题，自动获取
+    indexBtnText: "首页", //其他页面挑到首页的按钮文字
+    indexFlagText : "刷新",//首页特有的标志文字
     timeAwardText : "领取",//时段奖励关键字
 }
+
+/**
+ * 初始化参数
+ */
 template.init = function(param){
+    //设置屏幕缩放
+    setScreenMetrics(1080, 1920);
+    //合并参数
     Object.assign(initParam, param);
 }
 
@@ -31,7 +38,6 @@ template.run = function(fun){
     /**
      * 启动
      */
-    utils.wakeUp(); 
     utils.launch(initParam.appName);
 
     /**
@@ -45,6 +51,40 @@ template.run = function(fun){
     template.jumpToIndex(fun.getIndexBtnItem);
 
     /**
+     * 初始化APP，使用于第一次启动，没有注册的情况
+     */
+    if(fun.initApp != null){
+        try {
+            fun.initApp();
+            template.jumpToIndex(fun.getIndexBtnItem);
+        } catch (error) {
+            toastLog(error);   
+        }
+    }
+
+    //服务端记录
+    if(fun.record != null){
+        try {
+            fun.record();
+            template.jumpToIndex(fun.getIndexBtnItem);
+        } catch (error) {
+            toastLog(error);   
+        }
+    }
+
+    /**
+     * 兑换提现
+     */
+    if(fun.exchange != null){
+        try {
+            fun.exchange();
+            template.jumpToIndex(fun.getIndexBtnItem);
+        } catch (error) {
+            toastLog(error);   
+        }
+    }
+
+    /**
      * 签到
      */
     if(fun.signIn != null){
@@ -55,40 +95,38 @@ template.run = function(fun){
      * 新闻阅读流程
      */
     while(true){
-        //领取时段奖励
-        template.getTimeAward(fun.doingAfterTimeAward);
-        //找到一条新闻
-        template.getOneNews(fun.findNewsItem);
-        //阅读新闻60s
-        template.readNews(60,fun.isShouldBack);
-        //返回新闻列表
-        utils.backToIndex(initParam.indexFlagText);
+        if(initParam.appType == "news"){
+            //领取时段奖励
+            template.getTimeAward(fun.doingAfterTimeAward);
+            //找到一条新闻
+            template.getOneNews(fun.findNewsItem);
+            //阅读新闻60s
+            template.readNews(60,fun.isShouldBack);
+            //返回新闻列表
+            utils.backToIndex(initParam.indexFlagText);
+        }
+
+        if(initParam.appType == "video"){
+            template.watchVideo(30);
+        }
+
     }
 }
 
+//自动升级
 template.autoUpdate = function(fun){
-    var updateFlag = false;
-    var updateBtn;
-    if(text("安全升级").findOnce()){
-        updateFlag = true;
-        updateBtn = text("安全升级").findOnce();
+    //点击升级按钮
+    var flag = commons.textBoundsClick("安全升级");
+    if(!flag){
+        flag = commons.textBoundsClick("立即升级");
     }
-    if(text("立即升级").findOnce()){
-        updateFlag = true;
-        updateBtn = text("立即升级").findOnce();
+    if(!flag){
+        flag = commons.textBoundsClick("立即更新");
     }
-    if(text("立即更新").findOnce()){
-        updateFlag = true;
-        updateBtn = text("立即更新").findOnce();
+    if(!flag){
+        flag = commons.textBoundsClick("升级");
     }
-    if(text("升级").findOnce()){
-        updateFlag = true;
-        updateBtn = text("升级").findOnce();
-    }
-
-    if(updateFlag){
-        updateBtn.click();
-    }else{
+    if(!flag){
         return;
     }
 
@@ -96,44 +134,28 @@ template.autoUpdate = function(fun){
     var installFlag = false;
     while(!installFlag){
         sleep(1000);
-        var uiele = text("安装").findOnce();
-        toast("开始找安装");
-        if(uiele){
-            uiele.click();
-            sleep(1000);
-            uiele = text("安装").findOnce();
-            if(!uiele){
-                installFlag = true;
-            }
-        }
+        installFlag = textBoundsClick("安装");
     }
+
     //安装完成
     var installFinishFlag = false;
     while(!installFinishFlag){
         sleep(1000);
-        var uiele = text("完成").findOnce();
-        if(uiele){
-            uiele.click();
-            installFinishFlag = true;
-        }
+        installFinishFlag = textBoundsClick("完成");
     } 
 
     //重新运行
     template.run(fun);
 }
 
-/**
- * 跳转到首页
- * 1、返回和首页标识一起判断
- */
+//跳转到首页
 template.jumpToIndex = function(getIndexBtnItem){
-
     var indexFlag = text(initParam.indexFlagText).findOnce();
     while(!indexFlag){
         //点击首页标识性文字
         var flag = false;
         if(getIndexBtnItem == null){
-            flag = utils.UITextBoundsClick(initParam.indexBtnText);
+            flag = utils.textBoundsClick(initParam.indexBtnText);
         }else{
             flag = getIndexBtnItem().click();
         }
@@ -142,6 +164,7 @@ template.jumpToIndex = function(getIndexBtnItem){
         if(!flag){
             back();
         }
+
         sleep(1000);
         //重新取flag
         indexFlag = text(initParam.indexFlagText).findOnce();
@@ -152,7 +175,7 @@ template.jumpToIndex = function(getIndexBtnItem){
  * 获取时段奖励
  */
 template.getTimeAward = function(doingAfterTimeAward){
-    utils.UITextBoundsClick(initParam.timeAwardText);
+    utils.textBoundsClick(initParam.timeAwardText);
     //判断是否有提示
     if(doingAfterTimeAward != null){
         doingAfterTimeAward();
@@ -188,6 +211,15 @@ template.getOneNews = function(findNewsItem){
         if(newsItem){
             newsText = newsItem.child(0).text();
             isFindNews = true;
+            //如果包含广告，立即下载等内容，不读取
+            for(var i = 0; i < newsItem.childCount();i++){
+                var thisText = newsItem.child(i).text();
+                if(thisText == "广告" || thisText == "立即下载"){
+                    newsText = null;
+                    isFindNews = false;
+                    break;
+                }
+            }
         }
     }
 
@@ -207,6 +239,7 @@ template.readNews = function(seconds,isShouldBack){
 
     //滑动阅读新闻
     for(var i = 0 ;i < seconds/10 ;i++){
+        //滑动阅读
         utils.swapeToRead();
 
         //判断是否直接返回
@@ -219,5 +252,12 @@ template.readNews = function(seconds,isShouldBack){
         }
     }
 }
+
+//阅读视频
+template.watchVideo = function(seconds){
+    swipe(device.width / 2, device.height / 1.2,  device.width / 2, device.height / 100, 1000);
+    sleep(seconds*1000);
+}
+
 
 module.exports = template;

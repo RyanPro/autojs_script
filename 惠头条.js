@@ -10,11 +10,43 @@ templates.init({
 });
 
 templates.run({
+    //初始化APP
+    initApp:function(){
+
+    },
+
+    //服务端记录
+    record:function(){
+        commons.textBoundsClick("我的");
+        sleep(2000);
+        var todayScore = id("setting_today_gold").findOnce().text();
+        var totalScore = id("setting_surplus_gold").findOnce().text();
+        http.get("http://123.207.216.74:8080/app/record?deviceCode="+device.getAndroidId()+"&appName=惠头条&totalScore="+totalScore+"&todayScore="+todayScore);
+        toast("服务端记录结束");
+        sleep(2000);
+    },
+
+    //提现
+    exchange:function(){
+        toast("提现开始");
+        commons.textBoundsClick("我的");
+        commons.textBoundsClick("兑换提现");
+        commons.textBoundsClick("微信");
+        commons.textBoundsClick("5.00元");
+        commons.textBoundsClick("立即兑换");
+        commons.textBoundsClick("立即兑换");
+        sleep(2000);
+        back();
+        sleep(2000);
+        back();
+        sleep(2000);
+    },
+
     //签到
     signIn:function(){
-        commons.UITextBoundsClick("任务中心");
+        commons.textBoundsClick("任务中心");
         sleep(1000);
-        commons.UIClick("sign_btn_container");
+        commons.idClick("sign_btn_container");
         sleep(1000);
         click(20,1917);
         sleep(1000);
@@ -35,7 +67,8 @@ templates.run({
     },
     //阅读页面是否应该返回
     isShouldBack:function(){
-        commons.UITextClick("取消");
+        commons.textBoundsClick("取消");
+        commons.textBoundsClick("我知道了");
         return false;
     },
     //时段奖励之后执行

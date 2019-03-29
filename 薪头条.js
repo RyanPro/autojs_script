@@ -1,101 +1,104 @@
-const utils = require('common.js');
+const commons = require('common.js');
+const templates = require('template.js');
 
-/**
- * 全局参数
- */
-var lastNewsText="";//上一次新闻标题
-var totalNewsReaded = 0;//已经阅读的新闻条数
-var totalNewsOneTime = 50;//一次性阅读多少条新闻
-var loopTimeToFindNews=20;//找了多少次新闻找不到会退出
-var indexFlagText="刷新";//首页特有的标志文字
+templates.init({
+    appName:"薪头条"
+});
 
-/**
- * 主循环
- */
-utils.wakeUp(); 
-utils.launch("薪头条");
-jumpToIndex();
-signIn();
-while(true){
-    //领取时段奖励
-    getAward();
-    //找到一条新闻
-    getOneNews();
-    //阅读新闻60s
-    readNews(30);
-    //返回新闻列表
-    utils.backToIndex(indexFlagText);
-}
+templates.run({
+    //初始化APP
+    initApp:function(){
+        var flag = commons.textBoundsClick("登录领取");
+        if(!flag){
+            return;
+        }
 
-//跳转到首页
-function jumpToIndex(){
-    //跳转到首页
-    click(1,1919);
-}
-
-//签到
-function signIn(){
-    utils.UITextBoundsClick("任务");
-    sleep(2000);
-    click(1,1919);
-}
-
-//领取时段奖励
-function getAward(){
-    utils.UITextBoundsClick("领取");
-}
-
-// 获取一条新闻
-function getOneNews(){
-
-    //阅读超过50条，刷新页面
-    if(totalNewsReaded > totalNewsOneTime){
-        totalNews = 0;
-        click(1,1919);
+        //执行微信登陆
+        commons.idClick("id_activity_login_wx");
+        sleep(10000);
+        commons.textBoundsClick("确认登录");
         sleep(2000);
-    }
 
-     //上滑找新闻
-     var isFindNews = false;//是否找到新闻
-     var newsText = "";//新闻标题
-     var newsItem;//新闻条目
-     loopTimeToFindNews = 0;//循环次数
-     while((!isFindNews || lastNewsText === newsText)  && loopTimeToFindNews < 20){
-        //找新闻次数+1
-        loopTimeToFindNews++;
+        //获取手机号
+        var projectId = 2674;
+        var phone = commons.getPhone(projectId);
+        //写入手机号码
+        text("请输入11位手机号码").findOnce().setText(phone);
 
-        //进行下翻
-        swipe(device.width / 2, device.height / 4 * 2,  device.width / 2, device.height / 4, 1000);
+        //下一步
+        sleep(1000);
+        commons.textBoundsClick("获取短信验证码");
         sleep(1000);
 
-        //新闻条目
-        newsItem = className("android.support.v4.view.ViewPager")
-            .className("android.support.v4.view.ViewPager")
-            .className("android.support.v7.widget.RecyclerView")
-            .className("RelativeLayout").findOnce();
-        if(newsItem){
-            newsText = newsItem.child(0).text();
-            isFindNews = true;
+        //获取验证码
+        var code = commons.getCode(phone,projectId,60);
+        toast(code);
+
+        //写入验证码
+        className("EditText").findOnce(0).setText(code.substring(0,1));
+        className("EditText").findOnce(1).setText(code.substring(1,2));
+        className("EditText").findOnce(2).setText(code.substring(2,3));
+        className("EditText").findOnce(2).setText(code.substring(3,4));
+        
+    },
+    //服务端记录
+    record:function(){
+        commons.textBoundsClick("我的");
+        //关闭广告
+        closeMyAd();
+        sleep(2000);
+        var todayScore = className("android.support.v7.widget.RecyclerView").className("LinearLayout").className("TextView").findOnce(5).text();
+        var totalScore = className("android.support.v7.widget.RecyclerView").className("LinearLayout").className("TextView").findOnce(7).text();
+        http.get("http://123.207.216.74:8080/app/record?deviceCode="+device.getAndroidId()+"&appName=趣头条&totalScore="+totalScore+"&todayScore="+todayScore);
+    },
+    //提现
+    exchange:function(){
+        //进入提现页面
+        commons.textBoundsClick("我的");
+        sleep(2000);
+        //关闭广告
+        closeMyAd();
+        sleep(2000);
+        //点击兑换提现
+        commons.textBoundsClick("提现兑换");
+        //关闭支付宝广告
+        sleep(2000);
+        click(492,1641,588,1737);
+        commons.textBoundsClick("微信");
+        //选择金额:5元
+        textContains("5元").findOnce().click();
+        sleep(2000);
+        commons.textBoundsClick("立即提现");
+        back();
+    },
+
+    //签到
+    signIn:function(){
+        commons.textBoundsClick("任务");
+        sleep(2000);
+        click(1,1919);
+    },
+
+    //找出新闻的条目
+    findNewsItem:function(){
+        return className("android.support.v4.view.ViewPager").className("LinearLayout").findOnce();
+    },
+    
+    //阅读页面是否应该返回
+    isShouldBack:function(){
+        //图集直接返回
+        var imgItem = className("android.support.v4.view.ViewPager").className("ImageView").findOnce();
+        if(imgItem){
+            return true;
         }
+        return false;
     }
+});
 
-    //找到新闻，点击阅读
-    if(isFindNews){
-        lastNewsText = newsText;
-        totalNewsReaded++;
-        newsItem.click();
-    }else{
-        toast("20次滑动没有找到新闻，请检查新闻ID");
-        exit();
+function closeMyAd(){
+    commons.classNameClick(className("ImageView"));
+    sleep(1000);
+    if(text("个人资料").findOnce()){
+        back();
     }
-}
-
-//阅读新闻
-function readNews(seconds){
-
-    //滑动阅读新闻
-    for(var i = 0 ;i < seconds/10 ;i++){
-        utils.swapeToRead();
-    }
-
 }
